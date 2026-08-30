@@ -140,6 +140,9 @@ class MainActivity : ComponentActivity() {
                     active.store.markRead(current.chatId)
                 }
                 val messages by active.store.messages(current.chatId).collectAsState()
+                val statuses by active.store.chatStatuses.collectAsState()
+                val status = statuses[current.chatId] ?: active.store.statusOf(current.chatId)
+                
                 // Mark as read when new messages arrive while the chat is open.
                 LaunchedEffect(messages.size) {
                     active.store.markRead(current.chatId)
@@ -147,7 +150,9 @@ class MainActivity : ComponentActivity() {
                 ChatScreen(
                     title = current.title,
                     messages = messages,
+                    status = status,
                     onSend = { text -> active.send(current.chatId, text) },
+                    onAccept = { active.accept(current.chatId) },
                     onBack = { screen = Screen.Devices },
                 )
             }

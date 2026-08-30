@@ -13,6 +13,12 @@ const val TYPE_HELLO = "hello"
 /** A chat message. These are the packets that travel across the mesh. */
 const val TYPE_MSG = "msg"
 
+/** A request to start a chat. */
+const val TYPE_REQUEST = "request"
+
+/** An acceptance of a chat request. */
+const val TYPE_ACCEPT = "accept"
+
 /** An empty recipient means the message is for everybody. */
 const val PUBLIC = ""
 
@@ -86,6 +92,25 @@ data class Packet(
             id = newId(),
             to = to,
             text = text,
+            ttl = START_TTL,
+        )
+
+        fun request(from: String, name: String, to: String, text: String) = Packet(
+            type = TYPE_REQUEST,
+            from = from,
+            name = name,
+            id = newId(),
+            to = to,
+            text = text,
+            ttl = START_TTL,
+        )
+
+        fun accept(from: String, name: String, to: String) = Packet(
+            type = TYPE_ACCEPT,
+            from = from,
+            name = name,
+            id = newId(),
+            to = to,
             ttl = START_TTL,
         )
 

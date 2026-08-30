@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -25,15 +26,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.librechat.ChatMessage
+import com.example.librechat.ChatRequestStatus
 
 /** Used for the public chat and for one to one chats. Only the title and the messages differ. */
 @Composable
 fun ChatScreen(
     title: String,
     messages: List<ChatMessage>,
+    status: ChatRequestStatus,
     onSend: (String) -> Unit,
+    onAccept: () -> Unit,
     onBack: () -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
@@ -66,22 +71,52 @@ fun ChatScreen(
 
         Spacer(Modifier.padding(4.dp))
 
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = draft,
-                onValueChange = { draft = it },
-                placeholder = { Text("Message") },
-                modifier = Modifier.weight(1f),
-            )
-            Spacer(Modifier.width(8.dp))
-            Button(
-                onClick = {
-                    onSend(draft.trim())
-                    draft = ""
-                },
-                enabled = draft.isNotBlank(),
-            ) {
-                Text("Send")
+        when (status) {
+            ChatRequestStatus.PENDING_SENT -> {
+                Text(
+                    "Request sent. Waiting for $title to accept.",
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center
+                )
+            }
+
+            ChatRequestStatus.PENDING_RECEIVED -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text("$title wants to chat with you.", style = MaterialTheme.typography.bodyLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Button(onClick = onAccept) {
+                        Text("Accept Request")
+                    }
+                }
+            }
+
+            else -> {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    OutlinedTextField(
+                        value = draft,
+                        onValueChange = { draft = it },
+                        placeholder = { Text("Message") },
+                        modifier = Modifier.weight(1f),
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Button(
+                        onClick = {
+                            onSend(draft.trim())
+                            draft = ""
+                        },
+                        enabled = draft.isNotBlank(),
+                    ) {
+                        Text("Send")
+                    }
+                }
             }
         }
     }

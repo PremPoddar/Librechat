@@ -79,10 +79,24 @@ class MeshManager(
 
     /** Sends a message the user typed. Pass PUBLIC as [to] for the public chat. */
     fun send(to: String, text: String) {
-        val packet = Packet.message(from = myId, name = myName, to = to, text = text)
+        val status = store.statusOf(to)
+        val packet = if (to != PUBLIC && status == ChatRequestStatus.NONE) {
+            Packet.request(from = myId, name = myName, to = to, text = text)
+        } else {
+            Packet.message(from = myId, name = myName, to = to, text = text)
+        }
+        
         // Remember our own message so the copy that comes back through the mesh is ignored.
         router.remember(packet.id)
         store.addOutgoing(to, packet)
+        sendToEveryone(packet, except = null)
+    }
+
+    /** Accepts a chat request from [chatId]. */
+    fun accept(chatId: String) {
+        store.updateStatus(chatId, ChatRequestStatus.ACCEPTED)
+        val packet = Packet.accept(from = myId, name = myName, to = chatId)
+        router.remember(packet.id)
         sendToEveryone(packet, except = null)
     }
 
@@ -118,7 +132,9 @@ class MeshManager(
         // Hearing anything from a phone is what keeps it in the device list.
         store.addPeer(packet.from, packet.name, nearby)
 
-        if (packet.type == TYPE_MSG) store.addIncoming(packet)
+        if (packet.type == TYPE_MSG || packet.type == TYPE_REQUEST || packet.type == TYPE_ACCEPT) {
+            store.addIncoming(packet)
+        }
     }
 
     /** This is the flooding step: give the packet to every phone except the one it came from. */
