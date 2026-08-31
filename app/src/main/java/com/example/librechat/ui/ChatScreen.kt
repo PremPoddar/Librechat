@@ -26,6 +26,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.librechat.ChatMessage
@@ -39,6 +41,7 @@ fun ChatScreen(
     status: ChatRequestStatus,
     onSend: (String) -> Unit,
     onAccept: () -> Unit,
+    onDecline: () -> Unit,
     onBack: () -> Unit,
 ) {
     var draft by remember { mutableStateOf("") }
@@ -92,8 +95,14 @@ fun ChatScreen(
                 ) {
                     Text("$title wants to chat with you.", style = MaterialTheme.typography.bodyLarge)
                     Spacer(Modifier.height(8.dp))
-                    Button(onClick = onAccept) {
-                        Text("Accept Request")
+                    Row {
+                        Button(onClick = onAccept) {
+                            Text("Accept")
+                        }
+                        Spacer(Modifier.width(8.dp))
+                        Button(onClick = onDecline) {
+                            Text("Decline")
+                        }
                     }
                 }
             }
@@ -124,6 +133,7 @@ fun ChatScreen(
 
 @Composable
 private fun MessageRow(message: ChatMessage) {
+    val clipboardManager = LocalClipboardManager.current
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = if (message.mine) Arrangement.End else Arrangement.Start,
@@ -134,6 +144,14 @@ private fun MessageRow(message: ChatMessage) {
                     Text(message.fromName, style = MaterialTheme.typography.labelMedium)
                 }
                 Text(message.text, style = MaterialTheme.typography.bodyLarge)
+                
+                TextButton(
+                    onClick = {
+                        clipboardManager.setText(AnnotatedString(message.text))
+                    }
+                ) {
+                    Text("Copy")
+                }
             }
         }
     }

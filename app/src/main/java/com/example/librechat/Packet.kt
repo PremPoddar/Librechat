@@ -19,6 +19,9 @@ const val TYPE_REQUEST = "request"
 /** An acceptance of a chat request. */
 const val TYPE_ACCEPT = "accept"
 
+/** An emergency message for everybody. */
+const val TYPE_SOS = "sos"
+
 /** An empty recipient means the message is for everybody. */
 const val PUBLIC = ""
 
@@ -66,7 +69,7 @@ data class Packet(
                     id = json.optString("id"),
                     to = json.optString("to"),
                     text = json.optString("text"),
-                    ttl = json.optInt("ttl"),
+                    ttl = json.optInt("ttl", START_TTL),
                 )
             } catch (e: JSONException) {
                 null
@@ -111,6 +114,16 @@ data class Packet(
             name = name,
             id = newId(),
             to = to,
+            ttl = START_TTL,
+        )
+
+        fun sos(from: String, name: String, text: String) = Packet(
+            type = TYPE_SOS,
+            from = from,
+            name = name,
+            id = newId(),
+            to = PUBLIC,
+            text = text,
             ttl = START_TTL,
         )
 

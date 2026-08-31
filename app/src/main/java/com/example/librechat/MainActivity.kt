@@ -153,6 +153,7 @@ class MainActivity : ComponentActivity() {
                     status = status,
                     onSend = { text -> active.send(current.chatId, text) },
                     onAccept = { active.accept(current.chatId) },
+                    onDecline = { active.store.updateStatus(current.chatId, ChatRequestStatus.NONE) },
                     onBack = { screen = Screen.Devices },
                 )
             }

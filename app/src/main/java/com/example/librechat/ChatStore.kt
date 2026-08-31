@@ -98,7 +98,10 @@ class ChatStore {
             return // Accept packet doesn't have text to show
         }
 
-        add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = false))
+        if (packet.type == TYPE_MSG || packet.type == TYPE_SOS || packet.type == TYPE_REQUEST) {
+            add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = false))
+        }
+        
         synchronized(unreadIds) {
             unreadIds.value = unreadIds.value + chatId
         }
@@ -108,7 +111,9 @@ class ChatStore {
         if (packet.type == TYPE_REQUEST) {
             updateStatus(chatId, ChatRequestStatus.PENDING_SENT)
         }
-        add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = true))
+        if (packet.type == TYPE_MSG || packet.type == TYPE_SOS || packet.type == TYPE_REQUEST) {
+            add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = true))
+        }
     }
 
     @Synchronized

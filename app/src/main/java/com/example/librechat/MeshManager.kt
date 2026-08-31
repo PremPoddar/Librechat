@@ -132,7 +132,7 @@ class MeshManager(
         // Hearing anything from a phone is what keeps it in the device list.
         store.addPeer(packet.from, packet.name, nearby)
 
-        if (packet.type == TYPE_MSG || packet.type == TYPE_REQUEST || packet.type == TYPE_ACCEPT) {
+        if (packet.type == TYPE_MSG || packet.type == TYPE_REQUEST || packet.type == TYPE_ACCEPT || packet.type == TYPE_SOS) {
             store.addIncoming(packet)
         }
     }
