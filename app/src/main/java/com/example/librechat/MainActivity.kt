@@ -27,14 +27,12 @@ import com.example.librechat.ui.DeviceScreen
 import com.example.librechat.ui.LibreChatTheme
 import com.example.librechat.ui.NameScreen
 
-/** Android 12 and later need these three granted before any Bluetooth call works. */
 private val PERMISSIONS = arrayOf(
     Manifest.permission.BLUETOOTH_SCAN,
     Manifest.permission.BLUETOOTH_ADVERTISE,
     Manifest.permission.BLUETOOTH_CONNECT,
 )
 
-/** Which screen is showing. */
 private sealed class Screen {
     data object Name : Screen()
     data object Starting : Screen()
@@ -44,7 +42,6 @@ private sealed class Screen {
 
 class MainActivity : ComponentActivity() {
 
-    // Kept here so the Bluetooth radio is released when the app closes.
     private var mesh: MeshManager? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,7 +66,6 @@ class MainActivity : ComponentActivity() {
         var manager by remember { mutableStateOf<MeshManager?>(null) }
         var name by remember { mutableStateOf(settings.name) }
 
-        // A name from an earlier run means the first screen can be skipped.
         var screen by remember {
             mutableStateOf<Screen>(if (settings.name.isBlank()) Screen.Name else Screen.Starting)
         }
@@ -110,8 +106,6 @@ class MainActivity : ComponentActivity() {
             )
 
             Screen.Starting -> {
-                // The permissions were granted on an earlier run, so this normally passes straight
-                // through to the device list.
                 LaunchedEffect(Unit) { askForPermissions.launch(PERMISSIONS) }
                 Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Text("Starting LibreChat...")
@@ -131,6 +125,14 @@ class MainActivity : ComponentActivity() {
                         screen = Screen.Chat(chatId, title)
                     },
                     onRefresh = { active.refresh() },
+                    onChangeName = {
+                        active.stop()
+                        settings.name = ""
+                        manager = null
+                        mesh = null
+                        name = ""
+                        screen = Screen.Name
+                    }
                 )
             }
 

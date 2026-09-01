@@ -9,6 +9,7 @@ data class ChatMessage(
     val fromName: String,
     val text: String,
     val mine: Boolean,
+    val timestamp: Long = System.currentTimeMillis(),
 )
 
 /**

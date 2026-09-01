@@ -4,13 +4,7 @@ import org.json.JSONException
 import org.json.JSONObject
 import kotlin.random.Random
 
-/**
- * An announcement carrying a phone's name. Every phone sends one regularly, and they travel
- * across the mesh, so each phone knows who is still around.
- */
 const val TYPE_HELLO = "hello"
-
-/** A chat message. These are the packets that travel across the mesh. */
 const val TYPE_MSG = "msg"
 
 /** A request to start a chat. */
@@ -23,17 +17,10 @@ const val TYPE_ACCEPT = "accept"
 const val TYPE_SOS = "sos"
 
 /** An empty recipient means the message is for everybody. */
+const val TYPE_SOS = "sos"
 const val PUBLIC = ""
-
-/** How many hops a new message is allowed to travel before the mesh stops forwarding it. */
 const val START_TTL = 5
 
-/**
- * One unit of data sent over a Bluetooth link, encoded as JSON.
- *
- * JSON is used because it is easy to read while debugging and Android already ships a parser,
- * so the app needs no extra libraries.
- */
 data class Packet(
     val type: String,
     val from: String,
@@ -42,26 +29,41 @@ data class Packet(
     val to: String = PUBLIC,
     val text: String = "",
     val ttl: Int = START_TTL,
+    val timestamp: Long = System.currentTimeMillis()
 ) {
-
     fun toJson(): String {
         val json = JSONObject()
         json.put("type", type)
         json.put("from", from)
         json.put("name", name)
-        json.put("id", id)
-        json.put("to", to)
-        json.put("text", text)
-        json.put("ttl", ttl)
+        if (id.isNotEmpty()) json.put("id", id)
+        if (to.isNotEmpty()) json.put("to", to)
+        if (text.isNotEmpty()) json.put("text", text)
+        if (ttl != START_TTL) json.put("ttl", ttl)
+        json.put("timestamp", timestamp)
         return json.toString()
     }
 
     companion object {
+        fun makeHello(myId: String, myName: String): Packet =
+            Packet(type = TYPE_HELLO, from = myId, name = myName)
 
-        /** Returns null if the text is damaged or is not a packet at all, so the caller can ignore it. */
-        fun fromJson(text: String): Packet? {
+        fun makeMsg(myId: String, myName: String, to: String, text: String, isSos: Boolean = false): Packet {
+            val randomId = Random.nextInt(0, 0xFFFF).toString(16).padStart(4, '0')
+            return Packet(
+                type = if (isSos) TYPE_SOS else TYPE_MSG,
+                from = myId,
+                name = myName,
+                id = randomId,
+                to = to,
+                text = text,
+                timestamp = System.currentTimeMillis()
+            )
+        }
+
+        fun fromJson(raw: String): Packet? {
             return try {
-                val json = JSONObject(text)
+                val json = JSONObject(raw)
                 Packet(
                     type = json.getString("type"),
                     from = json.getString("from"),
@@ -70,6 +72,12 @@ data class Packet(
                     to = json.optString("to"),
                     text = json.optString("text"),
                     ttl = json.optInt("ttl", START_TTL),
+                    name = json.getString("name"),
+                    id = json.optString("id", ""),
+                    to = json.optString("to", PUBLIC),
+                    text = json.optString("text", ""),
+                    ttl = json.optInt("ttl", START_TTL),
+                    timestamp = json.optLong("timestamp", System.currentTimeMillis())
                 )
             } catch (e: JSONException) {
                 null

@@ -30,6 +30,11 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import com.example.librechat.ChatMessage
 import com.example.librechat.ChatRequestStatus
 
@@ -134,25 +139,61 @@ fun ChatScreen(
 @Composable
 private fun MessageRow(message: ChatMessage) {
     val clipboardManager = LocalClipboardManager.current
+
+    val clipboardManager = LocalClipboardManager.current
+
     Row(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.mine) Arrangement.End else Arrangement.Start,
+        horizontalArrangement =
+            if (message.mine) {
+                Arrangement.End
+            } else {
+                Arrangement.Start
+            },
     ) {
         Card {
-            Column(Modifier.padding(10.dp)) {
+            Column(
+                Modifier.padding(10.dp)
+            ) {
+
                 if (!message.mine) {
-                    Text(message.fromName, style = MaterialTheme.typography.labelMedium)
+                    Text(
+                        message.fromName,
+                        style = MaterialTheme.typography.labelMedium
+                    )
                 }
                 Text(message.text, style = MaterialTheme.typography.bodyLarge)
                 
                 TextButton(
                     onClick = {
                         clipboardManager.setText(AnnotatedString(message.text))
+
+                Text(
+                    message.text,
+                    style = MaterialTheme.typography.bodyLarge
+                )
+
+                TextButton(
+                    onClick = {
+                        clipboardManager.setText(
+                            AnnotatedString(message.text)
+                        )
                     }
                 ) {
                     Text("Copy")
                 }
+
+                Text(
+                    text = SimpleDateFormat(
+                        "hh:mm a",
+                        Locale.getDefault()
+                    ).format(
+                        Date(message.timestamp)
+                    ),
+                    style = MaterialTheme.typography.labelSmall
+                )
             }
         }
     }
 }
+
