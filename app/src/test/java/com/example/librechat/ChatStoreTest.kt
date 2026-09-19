@@ -1,11 +1,32 @@
 package com.example.librechat
 
+import com.example.librechat.db.MessageDao
+import com.example.librechat.db.MessageEntity
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.TestScope
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class ChatStoreTest {
+
+    class MockMessageDao : MessageDao {
+        val inserted = mutableListOf<MessageEntity>()
+        var deletedChatId: String? = null
+
+        override suspend fun getAllMessages(): List<MessageEntity> = emptyList()
+
+        override suspend fun insert(message: MessageEntity) {
+            inserted.add(message)
+        }
+
+        override suspend fun deleteByChatId(chatId: String) {
+            deletedChatId = chatId
+        }
+    }
 
     @Test
     fun `a phone we stop hearing from is forgotten`() {
@@ -112,5 +133,33 @@ class ChatStoreTest {
         
         // Discovered list should be empty
         assertEquals(0, store.discoveredPeers.value.size)
+    }
+
+    @Test
+    fun `incoming messages are saved to database`() = runTest {
+        val dao = MockMessageDao()
+        val store = ChatStore(messageDao = dao, scope = this)
+        
+        val packet = Packet.message(from = "7f3a", name = "Prem", to = "myid", text = "hello")
+        store.addIncoming(packet)
+        
+        // The save happens in the scope, so we wait for it
+        testScheduler.advanceUntilIdle()
+        
+        assertEquals(1, dao.inserted.size)
+        assertEquals("hello", dao.inserted[0].text)
+        assertEquals("7f3a", dao.inserted[0].chatId)
+    }
+
+    @Test
+    fun `clearing a chat deletes from database`() = runTest {
+        val dao = MockMessageDao()
+        val store = ChatStore(messageDao = dao, scope = this)
+        
+        store.clearChat("7f3a")
+        
+        testScheduler.advanceUntilIdle()
+        
+        assertEquals("7f3a", dao.deletedChatId)
     }
 }

@@ -2,6 +2,7 @@ package com.example.librechat
 
 import android.content.Context
 import android.util.Log
+import com.example.librechat.db.AppDatabase
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -31,7 +32,9 @@ class MeshManager(
     settings: Settings,
 ) {
 
-    val store = ChatStore(settings)
+    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
+    private val database = AppDatabase.getDatabase(context)
+    val store = ChatStore(settings, database.messageDao(), scope)
 
     private val router = MeshRouter(myId)
     private val server = BleServer(context, ::onLine, ::onLinkUp, ::onLinkDown)
@@ -40,8 +43,6 @@ class MeshManager(
     // Bluetooth works with hardware addresses, the app works with node ids, so we remember which
     // is which in order to update the device list when a phone goes out of range.
     private val idByAddress = mutableMapOf<String, String>()
-
-    private val scope = CoroutineScope(Dispatchers.Default + SupervisorJob())
 
     // Added feature: keep chat packets locally and retry them when a relay/link becomes available.
     private val storeAndForward = StoreAndForward(

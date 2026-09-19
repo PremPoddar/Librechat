@@ -1,7 +1,12 @@
 package com.example.librechat
 
+import com.example.librechat.db.MessageDao
+import com.example.librechat.db.MessageEntity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 
 /** One line in a chat. [mine] is true for messages this phone sent, so they can be shown differently. */
 data class ChatMessage(
@@ -39,7 +44,11 @@ enum class ChatRequestStatus {
  * The values are StateFlows because Compose can watch them and redraw a screen by itself whenever
  * a message or a device arrives.
  */
-class ChatStore(private val settings: Settings? = null) {
+class ChatStore(
+    private val settings: Settings? = null,
+    private val messageDao: MessageDao? = null,
+    private val scope: CoroutineScope = CoroutineScope(Dispatchers.IO)
+) {
 
     private val peerList = MutableStateFlow<List<Peer>>(emptyList())
     
@@ -71,6 +80,25 @@ class ChatStore(private val settings: Settings? = null) {
             
             // Pre-fill statuses with ACCEPTED for all persistent peers
             statuses.value = saved.mapValues { ChatRequestStatus.ACCEPTED }
+        }
+
+        // Load chat history from database
+        messageDao?.let { dao ->
+            scope.launch {
+                val all = dao.getAllMessages()
+                synchronized(this@ChatStore) {
+                    all.forEach { entity ->
+                        val chat = conversation(entity.chatId)
+                        chat.value = chat.value + ChatMessage(
+                            fromId = entity.fromId,
+                            fromName = entity.fromName,
+                            text = entity.text,
+                            mine = entity.isMine,
+                            timestamp = entity.timestamp
+                        )
+                    }
+                }
+            }
         }
     }
 
@@ -149,7 +177,10 @@ class ChatStore(private val settings: Settings? = null) {
             return // Accept packet doesn't have text to show
         }
 
-        add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = false, timestamp = packet.timestamp))
+        val message = ChatMessage(packet.from, packet.name, packet.text, mine = false, timestamp = packet.timestamp)
+        add(chatId, message)
+        saveToDb(chatId, message)
+
         synchronized(unreadIds) {
             unreadIds.value = unreadIds.value + chatId
         }
@@ -159,7 +190,26 @@ class ChatStore(private val settings: Settings? = null) {
         if (packet.type == TYPE_REQUEST) {
             updateStatus(chatId, ChatRequestStatus.PENDING_SENT)
         }
-        add(chatId, ChatMessage(packet.from, packet.name, packet.text, mine = true, timestamp = packet.timestamp))
+        val message = ChatMessage(packet.from, packet.name, packet.text, mine = true, timestamp = packet.timestamp)
+        add(chatId, message)
+        saveToDb(chatId, message)
+    }
+
+    private fun saveToDb(chatId: String, message: ChatMessage) {
+        messageDao?.let { dao ->
+            scope.launch {
+                dao.insert(
+                    MessageEntity(
+                        chatId = chatId,
+                        fromId = message.fromId,
+                        fromName = message.fromName,
+                        text = message.text,
+                        isMine = message.mine,
+                        timestamp = message.timestamp
+                    )
+                )
+            }
+        }
     }
 
     @Synchronized
@@ -190,6 +240,11 @@ class ChatStore(private val settings: Settings? = null) {
     fun clearChat(chatId: String) {
         conversation(chatId).value = emptyList()
         unreadIds.value = unreadIds.value - chatId
+        messageDao?.let { dao ->
+            scope.launch {
+                dao.deleteByChatId(chatId)
+            }
+        }
     }
     @Synchronized
     private fun add(chatId: String, message: ChatMessage) {
