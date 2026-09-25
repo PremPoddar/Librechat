@@ -125,6 +125,16 @@ class MeshManager(
         sendToEveryone(packet, except = null)
     }
 
+    /** Deletes a contact, clears chat locally, and sends a delete notification to the peer over the mesh. */
+    fun deleteContact(chatId: String) {
+        store.clearChat(chatId)
+        val packet = Packet.delete(from = myId, name = myName, to = chatId)
+        router.remember(packet.id)
+
+        storeAndForward.add(packet)
+        sendToEveryone(packet, except = null)
+    }
+
     /** Tells everybody in the mesh that this phone is still here. */
     private fun announce() {
         val hello = Packet.hello(from = myId, name = myName)
@@ -164,7 +174,7 @@ class MeshManager(
         // Hearing anything from a phone is what keeps it in the device list.
         store.addPeer(packet.from, packet.name, nearby)
 
-        if (packet.type == TYPE_MSG || packet.type == TYPE_REQUEST || packet.type == TYPE_ACCEPT) {
+        if (packet.type == TYPE_MSG || packet.type == TYPE_REQUEST || packet.type == TYPE_ACCEPT || packet.type == TYPE_DELETE) {
             store.addIncoming(packet)
         }
     }

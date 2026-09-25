@@ -114,17 +114,28 @@ class MainActivity : ComponentActivity() {
 
             Screen.Devices -> manager?.let { active ->
                 val pairedPeers by active.store.pairedPeers.collectAsState()
+                val archivedPeers by active.store.archivedPeers.collectAsState()
                 val discoveredPeers by active.store.discoveredPeers.collectAsState()
                 val unreadChatIds by active.store.unreadChatIds.collectAsState()
                 DeviceScreen(
                     myName = active.myName,
                     myId = active.myId,
                     pairedPeers = pairedPeers,
+                    archivedPeers = archivedPeers,
                     discoveredPeers = discoveredPeers,
                     unreadChatIds = unreadChatIds,
                     onOpenChat = { chatId, title ->
                         active.store.markRead(chatId)
                         screen = Screen.Chat(chatId, title)
+                    },
+                    onDeleteContact = { chatId ->
+                        active.deleteContact(chatId)
+                    },
+                    onArchiveContact = { chatId ->
+                        active.store.archivePeer(chatId)
+                    },
+                    onUnarchiveContact = { chatId ->
+                        active.store.unarchivePeer(chatId)
                     },
                     onRefresh = { active.refresh() },
                     onNameChanged = { newName ->

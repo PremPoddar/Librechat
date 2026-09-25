@@ -162,4 +162,56 @@ class ChatStoreTest {
         
         assertEquals("7f3a", dao.deletedChatId)
     }
+
+    @Test
+    fun `archiving a contact moves them to archivedPeers`() {
+        val store = ChatStore()
+        store.addPeer("id1", "Alice", nearby = true)
+        store.updateStatus("id1", ChatRequestStatus.ACCEPTED)
+
+        assertEquals(1, store.pairedPeers.value.size)
+        assertEquals(0, store.archivedPeers.value.size)
+
+        store.archivePeer("id1")
+
+        assertEquals(0, store.pairedPeers.value.size)
+        assertEquals(1, store.archivedPeers.value.size)
+
+        store.unarchivePeer("id1")
+
+        assertEquals(1, store.pairedPeers.value.size)
+        assertEquals(0, store.archivedPeers.value.size)
+    }
+
+    @Test
+    fun `clearing chat with a paired peer removes them from paired peers and resets status`() {
+        val store = ChatStore()
+        store.addPeer("id1", "Alice", nearby = true)
+        store.updateStatus("id1", ChatRequestStatus.ACCEPTED)
+
+        assertEquals(1, store.pairedPeers.value.size)
+        assertEquals(ChatRequestStatus.ACCEPTED, store.statusOf("id1"))
+
+        store.clearChat("id1")
+
+        assertEquals(0, store.pairedPeers.value.size)
+        assertEquals(ChatRequestStatus.NONE, store.statusOf("id1"))
+        assertEquals(1, store.discoveredPeers.value.size)
+    }
+
+    @Test
+    fun `incoming delete packet clears chat and removes contact`() {
+        val store = ChatStore()
+        store.addPeer("id1", "Alice", nearby = true)
+        store.updateStatus("id1", ChatRequestStatus.ACCEPTED)
+
+        assertEquals(1, store.pairedPeers.value.size)
+
+        val deletePacket = Packet.delete(from = "id1", name = "Alice", to = "myid")
+        store.addIncoming(deletePacket)
+
+        assertEquals(0, store.pairedPeers.value.size)
+        assertEquals(ChatRequestStatus.NONE, store.statusOf("id1"))
+        assertEquals(1, store.discoveredPeers.value.size)
+    }
 }

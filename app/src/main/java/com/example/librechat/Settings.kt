@@ -51,9 +51,37 @@ class Settings(context: Context) {
         pairedPeers = current
     }
 
+    fun removePairedPeer(id: String) {
+        val current = pairedPeers.toMutableSet()
+        current.removeAll { it.startsWith("$id|") }
+        pairedPeers = current
+    }
+
+    /**
+     * Set of peer IDs that the user has archived.
+     */
+    var archivedPeers: Set<String>
+        get() = prefs.getStringSet(KEY_ARCHIVED, emptySet()) ?: emptySet()
+        private set(value) {
+            prefs.edit().putStringSet(KEY_ARCHIVED, value).apply()
+        }
+
+    fun addArchivedPeer(id: String) {
+        val current = archivedPeers.toMutableSet()
+        current.add(id)
+        archivedPeers = current
+    }
+
+    fun removeArchivedPeer(id: String) {
+        val current = archivedPeers.toMutableSet()
+        current.remove(id)
+        archivedPeers = current
+    }
+
     private companion object {
         const val KEY_NAME = "name"
         const val KEY_ID = "id"
         const val KEY_PAIRED = "paired_peers"
+        const val KEY_ARCHIVED = "archived_peers"
     }
 }

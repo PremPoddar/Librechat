@@ -55,8 +55,13 @@ class ChatStore(
     // The full list of peers we have accepted, even if they are currently offline.
     private val persistentPeers = MutableStateFlow<Map<String, String>>(emptyMap())
 
+    private val archivedIds = MutableStateFlow<Set<String>>(emptySet())
+
     private val _pairedPeers = MutableStateFlow<List<Peer>>(emptyList())
     val pairedPeers: StateFlow<List<Peer>> = _pairedPeers
+
+    private val _archivedPeers = MutableStateFlow<List<Peer>>(emptyList())
+    val archivedPeers: StateFlow<List<Peer>> = _archivedPeers
 
     private val _discoveredPeers = MutableStateFlow<List<Peer>>(emptyList())
     val discoveredPeers: StateFlow<List<Peer>> = _discoveredPeers
@@ -70,8 +75,9 @@ class ChatStore(
     val chatStatuses: StateFlow<Map<String, ChatRequestStatus>> = statuses
 
     init {
-        // Load paired peers from settings
+        // Load paired peers and archived peers from settings
         settings?.let { s ->
+            archivedIds.value = s.archivedPeers
             val saved = s.pairedPeers.mapNotNull { 
                 val parts = it.split("|", limit = 2)
                 if (parts.size == 2) parts[0] to parts[1] else null
@@ -152,26 +158,54 @@ class ChatStore(
         updateSplitFlows()
     }
 
+    @Synchronized
+    fun archivePeer(id: String) {
+        archivedIds.value = archivedIds.value + id
+        settings?.addArchivedPeer(id)
+        updateSplitFlows()
+    }
+
+    @Synchronized
+    fun unarchivePeer(id: String) {
+        archivedIds.value = archivedIds.value - id
+        settings?.removeArchivedPeer(id)
+        updateSplitFlows()
+    }
+
     private fun updateSplitFlows() {
         val online = peerList.value
         val paired = persistentPeers.value
+        val archived = archivedIds.value
 
         // Paired list: Everyone in 'paired', with online status if available
-        val pairedList = paired.map { (id, name) ->
+        val allPaired = paired.map { (id, name) ->
             online.find { it.id == id } ?: Peer(id, name, nearby = false, lastSeen = 0)
         }.sortedWith(compareByDescending<Peer> { it.lastSeen > 0 }.thenBy { it.name })
+
+        _pairedPeers.value = allPaired.filter { !archived.contains(it.id) }
+        _archivedPeers.value = allPaired.filter { archived.contains(it.id) }
 
         // Discovered list: Everyone 'online' who is NOT in 'paired'
         val discoveredList = online.filter { !paired.containsKey(it.id) }
 
-        _pairedPeers.value = pairedList
         _discoveredPeers.value = discoveredList
     }
 
     fun addIncoming(packet: Packet) {
         val chatId = if (packet.to == PUBLIC) PUBLIC else packet.from
         if (packet.type == TYPE_REQUEST) {
+            if (persistentPeers.value.containsKey(chatId)) {
+                persistentPeers.value = persistentPeers.value - chatId
+                settings?.removePairedPeer(chatId)
+            }
+            if (archivedIds.value.contains(chatId)) {
+                archivedIds.value = archivedIds.value - chatId
+                settings?.removeArchivedPeer(chatId)
+            }
             updateStatus(chatId, ChatRequestStatus.PENDING_RECEIVED)
+        } else if (packet.type == TYPE_DELETE) {
+            clearChat(chatId)
+            return
         } else if (packet.type == TYPE_ACCEPT) {
             updateStatus(chatId, ChatRequestStatus.ACCEPTED)
             return // Accept packet doesn't have text to show
@@ -244,6 +278,18 @@ class ChatStore(
             scope.launch {
                 dao.deleteByChatId(chatId)
             }
+        }
+        if (chatId != PUBLIC) {
+            if (persistentPeers.value.containsKey(chatId)) {
+                persistentPeers.value = persistentPeers.value - chatId
+                settings?.removePairedPeer(chatId)
+            }
+            if (archivedIds.value.contains(chatId)) {
+                archivedIds.value = archivedIds.value - chatId
+                settings?.removeArchivedPeer(chatId)
+            }
+            statuses.value = statuses.value - chatId
+            updateSplitFlows()
         }
     }
     @Synchronized

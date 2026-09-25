@@ -19,6 +19,9 @@ const val TYPE_REQUEST = "request"
 /** An acceptance of a chat request. */
 const val TYPE_ACCEPT = "accept"
 
+/** A request to delete a contact. */
+const val TYPE_DELETE = "delete"
+
 /** Emergency SOS message. */
 const val TYPE_SOS = "sos"
 
@@ -113,6 +116,15 @@ data class Packet(
 
         fun accept(from: String, name: String, to: String) = Packet(
             type = TYPE_ACCEPT,
+            from = from,
+            name = name,
+            id = newId(),
+            to = to,
+            ttl = START_TTL,
+        )
+
+        fun delete(from: String, name: String, to: String) = Packet(
+            type = TYPE_DELETE,
             from = from,
             name = name,
             id = newId(),
